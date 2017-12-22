@@ -20,7 +20,7 @@ protocol PhotoBrowserMainScrollViewDelegate {
 }
 
 
-class PhotoBrowserMainScrollView: UIView, UIScrollViewDelegate {
+class PhotoBrowserMainScrollView: UIView, UIScrollViewDelegate, PhotoBrowserSubScrollViewDelegate {
     
     var delegate: PhotoBrowserMainScrollViewDelegate?
     
@@ -74,11 +74,60 @@ class PhotoBrowserMainScrollView: UIView, UIScrollViewDelegate {
             mainScrollView.contentInsetAdjustmentBehavior = .never
         }
         
-        // MARK: - 添加图片
+        // MARK: - 添加图片容器
         for index in 0..<(imageNameArray?.count)! {
-            
+            let subScrollView = PhotoBrowserSubScrollView(
+                frame: CGRect(x: CGFloat(index) * (self.frame.width + MARGIN_BETWEEN_IMAGE),
+                              y: 0,
+                              width: self.frame.width,
+                              height: self.frame.height),
+                imageName: imageNameArray![index]
+            )
+            mainScrollView.addSubview(subScrollView)
+            subScrollView.delegate = self
+            subScrollView.tag = index + 1
         }
         
+        // 设置偏移量，即滚到当前用户选择的图片
+        mainScrollView.contentOffset =
+            CGPoint(x: CGFloat(currentImageIndex) * (self.frame.width + MARGIN_BETWEEN_IMAGE),
+                    y: 0
+        )
     }
     
+    
+    // MARK: - PhotoBrowserSubScrollViewDelegate
+    func photoBrowserSubScrollViewDoSingleTapped(_ photoBrowserSubScrollView: PhotoBrowserSubScrollView, imageFrame: CGRect) {
+        delegate?.photoBrowserMainScrollViewSingleTapped(self, imageFrame: imageFrame)
+    }
+    
+    func photoBrowserSubScrollViewDoDownDrag(_ photoBrowserSubScrollView: PhotoBrowserSubScrollView, isBegin: Bool, needBack: Bool, imageFrame: CGRect) {
+        if needBack {
+            delegate?.PhotoBrowserMainScrollViewNeedBack(self, imageFrame: imageFrame)
+        } else {
+            for view in (mainScrollView?.subviews)! {
+                guard view.tag != photoBrowserSubScrollView.tag else {
+                    continue
+                }
+                view.isHidden = isBegin
+            }
+        }
+    }
+    
+    func PhotoBrowserSubScrollViewDoSingleTapped(_ photoBrowserSubScrollView: PhotoBrowserSubScrollView, dragProportion: CGFloat) {
+        delegate?.photoBrowserMainScrollViewDoingDownDrag(self, dragProportion: dragProportion)
+    }
+    
+    
+    // MARK: - UIScrollView Delegate
+    // 减速完毕
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        currentImageIndex = Int(scrollView.contentOffset.x / self.frame.width)
+      
+        delegate?.photoBrowserMainScrollViewChangeCurrentIndex(self, currentIndex: currentImageIndex)
+    }
 }
+
+
+
+
